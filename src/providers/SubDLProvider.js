@@ -267,7 +267,7 @@ class SubDLProvider extends BaseProvider {
         const queryStr = params.toString();
         const downloadUrl = `${this.baseUrl}/api/subdl/proxy/${encodedUrl}${queryStr ? '?' + queryStr : ''}`;
 
-        const lang = getBySubdlCode(sub.lang || sub.language);
+        const lang = getBySubdlCode(sub.language || sub.lang);
         const stremioCode = lang ? toAlpha3B(lang.alpha2) : 'und';
         const displayName = lang ? getDisplayName(lang.alpha2) : (sub.language || 'Unknown');
 
@@ -276,7 +276,7 @@ class SubDLProvider extends BaseProvider {
         return new SubtitleResult({
             id: `subdl-${this._subtitleIdFromUrl(sub.url)}`,
             url: downloadUrl,
-            language: lang ? lang.alpha2 : (sub.lang || '').toLowerCase(),
+            language: lang ? lang.alpha2 : (sub.language || sub.lang || '').toLowerCase(),
             languageCode: stremioCode,
             source: 'subdl',
             provider: 'subdl',
