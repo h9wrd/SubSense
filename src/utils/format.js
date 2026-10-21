@@ -184,12 +184,7 @@ const PROVIDER_PROXY_RE = /\/api\/(yify|tvsubtitles|subsource|betaseries|opensub
 
 // Build the user-facing label: "Provider · [FORMAT] · <name> · [HI|FORCED]"
 function buildLabel(provider, fmt, name, isHI, isForced) {
-    const parts = [displayProvider(provider), `[${(fmt || 'srt').toUpperCase()}]`];
-    if (name) parts.push(name);
-    let label = parts.join(' · ');
-    if (isForced) label += ' · FORCED';
-    else if (isHI) label += ' · HI';
-    return label;
+    return 'Helly';
 }
 
 // Build a stable, predictable Stremio entry id
