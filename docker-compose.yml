@@ -8,7 +8,8 @@
 
 services:
   subsense:
-    image: nepiraw/stremio-subsense:latest
+    build: .
+    image: stremio-subsense:latest
     container_name: stremio-subsense
     restart: unless-stopped
     depends_on:
@@ -31,7 +32,8 @@ services:
       - warp-data:/var/lib/cloudflare-warp
 
   worker:
-    image: nepiraw/stremio-subsense:latest
+    build: .
+    image: stremio-subsense:latest
     container_name: stremio-subsense-worker
     restart: unless-stopped
     init: true                                 # so SIGTERM reaches node and the final drain runs
