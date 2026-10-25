@@ -16,8 +16,6 @@ services:
         condition: service_healthy
     ports:
       - "3100:3100"
-    env_file:
-      - .env
     environment:
       # --- Core (mandatory) ---
       - PORT=3100                              # Server port
@@ -81,8 +79,6 @@ services:
     depends_on:
       redis:
         condition: service_healthy
-    env_file:
-      - .env
     environment:
       - LOG_LEVEL=info
       - WARP_ENABLED=false                     # the worker makes no upstream provider calls
