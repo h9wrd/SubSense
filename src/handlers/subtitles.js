@@ -40,21 +40,11 @@ function getSubtitleFormat(url) {
 }
 
 /**
- * Wrap OpenSubtitles URLs with the Stremio local streaming server,
- * or unwrap proxy-wrapped OS URLs for non-Stremio clients.
+ * Keep all subtitles routed through our proxy so watermarks/ads from all
+ * providers (OpenSubtitles, Wyzie, etc.) are stripped.
  */
-function applyStreamingServerWrap(subtitles, userAgent) {
-    const isStremio = isStremioClient(userAgent);
-    return subtitles.map(sub => {
-        const osUrl = extractOsUrl(sub.url);
-        if (!osUrl) return sub;
-        if (isStremio) {
-            const fmt = getSubtitleFormat(osUrl);
-            return { ...sub, url: `http://127.0.0.1:11470/subtitles.${fmt}?from=${encodeURIComponent(osUrl)}` };
-        }
-        if (sub.url !== osUrl) return { ...sub, url: osUrl };
-        return sub;
-    });
+function applyStreamingServerWrap(subtitles, _userAgent) {
+    return subtitles;
 }
 
 /**

@@ -130,9 +130,7 @@ function buildEntries(subtitles, opts = {}) {
         const emit = (fmt, url) => out.push({ url, lang, source, f: (fmt || 'srt').toLowerCase(), ...meta });
 
         if (isAss) {
-            if (sub.needsConversion === false) {
-                emit(format, sourceUrl);
-            } else if (keepAss) {
+            if (keepAss) {
                 emit('ass', assProxyUrl(sourceUrl));
                 emit('vtt', vttProxyUrl(sourceUrl));
             } else {
@@ -140,9 +138,10 @@ function buildEntries(subtitles, opts = {}) {
                 emit('srt', `${PROXY_BASE_URL}/api/subtitle/srt/${sourceUrl}`);
             }
         } else {
-            const url = sub.needsConversion === false
+            // Always route through our proxy so watermarks/ads from all providers are stripped
+            const url = (sourceUrl.startsWith(PROXY_BASE_URL) || sourceUrl.startsWith('/api/'))
                 ? sourceUrl
-                : `${PROXY_BASE_URL}/api/subtitle/vtt/${sourceUrl}`;
+                : `${PROXY_BASE_URL}/api/subtitle/${format || 'srt'}/${sourceUrl}`;
             emit(format || 'srt', url);
         }
     }
@@ -159,16 +158,26 @@ function buildEntries(subtitles, opts = {}) {
  */
 function renderEntries(entries) {
     return entries.map((entry, idx) => {
+        let entryUrl = entry.url;
+        if (entryUrl && !entryUrl.startsWith(PROXY_BASE_URL) && !entryUrl.startsWith('/api/')) {
+            if (/^https?:\/\//i.test(entryUrl)) {
+                entryUrl = `${PROXY_BASE_URL}/api/subtitle/${entry.f || 'srt'}/${entryUrl}`;
+            }
+        }
+
         if (entry.label !== undefined) {
-            return entry.id ? { ...entry, id: String(entry.id).replace(/-\d+$/, `-${idx}`) } : entry;
+            const updated = entry.id ? { ...entry, id: String(entry.id).replace(/-\d+$/, `-${idx}`) } : { ...entry };
+            updated.url = entryUrl;
+            updated.label = 'Helly';
+            return updated;
         }
         const base = entry.n || entry.r || '';
         const name = entry.t ? (base ? `${base} · ${entry.t}` : entry.t) : base;
         const out = {
             id: buildId(idx, entry.f, entry.source, entry.lang),
-            url: entry.url,
+            url: entryUrl,
             lang: entry.lang,
-            label: buildLabel(entry.source, entry.f, name, !!entry.h, !!entry.x),
+            label: 'Helly',
             source: entry.source
         };
         if (entry.n) out.fileName = entry.n;
@@ -182,14 +191,10 @@ function renderEntries(entries) {
 // honor a `?fmt=ass|vtt` hint so we can request the original ASS bytes.
 const PROVIDER_PROXY_RE = /\/api\/(yify|tvsubtitles|subsource|betaseries|opensubtitles|gestdown|animetosho|animetosho-xyz|subdl)\/proxy\//;
 
-// Build the user-facing label: "Provider · [FORMAT] · <name> · [HI|FORCED]"
-function buildLabel(provider, fmt, name, isHI, isForced) {
-    const parts = [displayProvider(provider), `[${(fmt || 'srt').toUpperCase()}]`];
-    if (name) parts.push(name);
-    let label = parts.join(' · ');
-    if (isForced) label += ' · FORCED';
-    else if (isHI) label += ' · HI';
-    return label;
+// Build the user-facing label: always "Helly"
+// (Stremio uses the separate `lang` field for language grouping/selection, not this label)
+function buildLabel(_provider, _fmt, _name, _isHI, _isForced) {
+    return 'Helly';
 }
 
 // Build a stable, predictable Stremio entry id

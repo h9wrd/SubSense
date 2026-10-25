@@ -113,14 +113,8 @@ function selectSubtitleEntry(entries, { season, episode, filename, langPatterns,
     const epNum = episode != null ? String(episode).padStart(2, '0') : null;
     const seNum = season != null ? String(season).padStart(2, '0') : null;
 
-    if (entries.length === 1 && episode) {
-        const entry = entries[0];
-        const patternMatch = entry.name.match(/[sS]\d+[eE](\d{1,3})|[eE][pP]?(\d{1,3})(?!\d)/);
-        if (patternMatch) {
-            const fileEp = parseInt(patternMatch[1] || patternMatch[2], 10);
-            if (fileEp !== parseInt(episode, 10)) return null;
-        }
-        return entry;
+    if (entries.length === 1) {
+        return entries[0];
     }
 
     if (epNum) {
@@ -166,9 +160,9 @@ function selectSubtitleEntry(entries, { season, episode, filename, langPatterns,
         }
     }
 
-    if (epNum) return null;
-
-    return entries.find((e) => e.name.toLowerCase().endsWith('.srt')) || entries[0];
+    return entries.find((e) => e.name.toLowerCase().endsWith('.srt')) ||
+           entries.find((e) => e.name.toLowerCase().endsWith('.ass') || e.name.toLowerCase().endsWith('.vtt')) ||
+           entries[0];
 }
 
 function detectEntryFormat(name) {
@@ -183,6 +177,10 @@ function detectEntryFormat(name) {
  * Convert subtitle text to the requested output format.
  */
 function convertForOutput(content, requestedFormat) {
+    if (content) {
+        content = stripWyzieWatermark(content);
+    }
+
     const original = isAssFormat(content) ? 'ass' : detectFromContent(content);
 
     if (requestedFormat === 'ass' || requestedFormat === 'ssa') {
@@ -217,6 +215,75 @@ function contentTypeFor(format) {
     return 'text/plain; charset=utf-8';
 }
 
+/**
+ * Known promotional/advertisement patterns injected by subtitle aggregators.
+ */
+const AD_PATTERNS = [
+    // Wyzie free-plan upsell & branding
+    /you'?re on the free plan/i,
+    /store\.wyzie\.io/i,
+    /wyzie\.io/i,
+    // Ray subtitle watermark (getray.app, tryray.app, etc.)
+    /getray\.app/i,
+    /tryray\.app/i,
+    /ray\.app/i,
+    /\b[a-z0-9-]+\.app\b/i,
+    /厌倦了搜索字幕/i,
+    /即刻生成字幕/i,
+    /立刻生成字幕/i,
+];
+
+/**
+ * Remove promotional advertisement cues injected by aggregators (Wyzie, getray.app, etc.).
+ *
+ * Supports ASS, SSA, SRT, and VTT subtitle formats.
+ *
+ * @param {string} content - Raw subtitle text (ASS, SSA, SRT, or VTT)
+ * @returns {string} - Subtitle text with ad cues removed
+ */
+function stripWyzieWatermark(content) {
+    if (!content || typeof content !== 'string') return content;
+
+    // Quick bail-out: skip processing if none of the known ad strings are present
+    const lower = content.toLowerCase();
+    if (!AD_PATTERNS.some(p => p.test(lower))) return content;
+
+    // Check if ASS / SSA format
+    if (isAssFormat(content) || content.includes('[Events]')) {
+        return content.split(/\r?\n/).filter(line => {
+            if (!line.startsWith('Dialogue:') && !line.startsWith('Comment:')) return true;
+            return !AD_PATTERNS.some(p => p.test(line));
+        }).join('\n');
+    }
+
+    // SRT or VTT format
+    const isVtt = content.startsWith('WEBVTT');
+    const normalised = content.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+    const blocks = normalised.split(/\n{2,}/);
+
+    const filtered = blocks.filter((block) => {
+        const trimmed = block.trim();
+        if (!trimmed) return false;
+
+        // Always keep the WEBVTT header block
+        if (isVtt && trimmed.startsWith('WEBVTT')) return true;
+
+        // Remove only if the text matches a known ad pattern
+        return !AD_PATTERNS.some(p => p.test(trimmed));
+    });
+
+    const rejoined = filtered.join('\n\n');
+
+    // Re-number SRT sequence indices so gaps don't confuse players
+    if (!isVtt) {
+        let idx = 1;
+        return rejoined.replace(/^(\d+)(\n\d{1,2}:\d{2}:\d{2}[,.]\d{3}\s+-->)/gm,
+            (_m, _n, rest) => `${idx++}${rest}`);
+    }
+
+    return rejoined;
+}
+
 module.exports = {
     isZipBuffer,
     isRarBuffer,
@@ -227,5 +294,6 @@ module.exports = {
     convertForOutput,
     bufferToText,
     contentTypeFor,
+    stripWyzieWatermark,
     SUBTITLE_EXTS
 };

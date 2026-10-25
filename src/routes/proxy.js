@@ -33,7 +33,8 @@ const {
     detectEntryFormat,
     convertForOutput,
     bufferToText,
-    contentTypeFor
+    contentTypeFor,
+    stripWyzieWatermark
 } = require('../utils/archive');
 
 /**
@@ -308,6 +309,7 @@ router.get('/subtitle/:format/*', async (req, res) => {
     if (!originalUrl) return res.status(400).send('Missing subtitle URL');
 
     const cacheKey = `subtitle:${format}:${originalUrl}`;
+    log('info', `[proxy/subtitle] fmt=${format} url=${originalUrl.substring(0, 80)}`);
 
     try {
         assertAllowedSubtitleUrl(originalUrl);
@@ -335,7 +337,8 @@ router.get('/subtitle/:format/*', async (req, res) => {
             if (!response.ok) throw proxyError(response.status, `upstream ${response.status}`);
             const buffer = Buffer.from(await response.arrayBuffer());
 
-            const text = bufferToText(buffer);
+            let text = bufferToText(buffer);
+            text = stripWyzieWatermark(text);
             const conv = convertForOutput(text, format);
             return {
                 content: conv.content,

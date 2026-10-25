@@ -133,7 +133,8 @@ function countMediainfoTracks(detail) {
 
 /** The token carries the attachment id and its storage path, which is all the proxy needs. */
 function buildProxyUrl(baseUrl, subtitle, fmt) {
-    const path = String(subtitle.url).replace(`${XYZ_STORAGE_URL}/`, '');
+    const rawUrl = String(subtitle.url);
+    const path = rawUrl.replace(/^https?:\/\/storage\.animetosho\.(?:xyz|net|org)\//i, '');
     const payload = JSON.stringify({ i: subtitle.id, p: path });
     const encoded = Buffer.from(payload).toString('base64url');
     return `${baseUrl}/api/animetosho-xyz/proxy/${encoded}?fmt=${fmt}`;
@@ -153,10 +154,11 @@ function decodeProxyToken(token) {
  * guard pins the host instead of matching a shape.
  */
 function storageUrlForPath(path) {
-    const p = String(path || '');
-    if (!p || p.startsWith('/') || p.includes('://') || p.includes('..') || p.includes('\\')) return null;
-    if (!p.toLowerCase().endsWith('.xz')) return null;
-    return `${XYZ_STORAGE_URL}/${p}`;
+    let p = String(path || '');
+    if (!p || p.startsWith('/') || p.includes('..') || p.includes('\\')) return null;
+    p = p.replace(/^https?:\/\/storage\.animetosho\.(?:xyz|net|org)\//i, '');
+    if (p.includes('://')) return null;
+    return `https://storage.animetosho.net/${p}`;
 }
 
 module.exports = {
